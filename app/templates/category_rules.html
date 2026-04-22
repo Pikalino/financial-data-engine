@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Category Rules</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 24px;
+            background: #f7f7f7;
+            color: #222;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+        }
+
+        h1, h2 {
+            margin-bottom: 12px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 180px 1fr;
+            gap: 14px 18px;
+            align-items: center;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+
+        button, a {
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: none;
+            text-decoration: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        button {
+            background: #1976d2;
+            color: white;
+        }
+
+        .secondary {
+            background: #e0e0e0;
+            color: #222;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            font-size: 14px;
+        }
+
+        th {
+            background: #f0f0f0;
+        }
+
+        .banner {
+            border-left: 5px solid #1976d2;
+            background: #eef5ff;
+            padding: 12px 14px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a class="secondary" href="/dashboard">← Back to Dashboard</a>
+
+        <div class="section">
+            <h1>Category Rules</h1>
+
+            {% if updated_count is not none %}
+            <div class="banner">
+                Rules applied. Transactions updated: <strong>{{ updated_count }}</strong>
+            </div>
+            {% endif %}
+
+            <form method="post" action="/category-rules">
+                <div class="grid">
+                    <label for="keyword">Keyword</label>
+                    <input type="text" id="keyword" name="keyword" placeholder="e.g. meta" required>
+
+                    <label for="category">Category</label>
+                    <input type="text" id="category" name="category" placeholder="e.g. marketing" required>
+
+                    <label for="priority">Priority</label>
+                    <input type="number" id="priority" name="priority" value="100" required>
+                </div>
+
+                <div class="actions">
+                    <button type="submit">Add Rule</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="section">
+            <h2>Existing Rules</h2>
+
+            <form method="post" action="/category-rules/apply">
+                <div class="actions">
+                    <button type="submit">Apply Rules to All Transactions</button>
+                </div>
+            </form>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Keyword</th>
+                        <th>Category</th>
+                        <th>Priority</th>
+                        <th>Active</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rule in rules %}
+                    <tr>
+                        <td>{{ rule.keyword }}</td>
+                        <td>{{ rule.category }}</td>
+                        <td>{{ rule.priority }}</td>
+                        <td>{{ rule.is_active }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% if not rules %}
+                    <tr>
+                        <td colspan="4">No rules yet.</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

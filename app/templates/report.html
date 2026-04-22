@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Financial Report</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 24px;
+            color: #222;
+            background: white;
+        }
+
+        h1, h2, h3 {
+            margin-bottom: 12px;
+        }
+
+        .section {
+            margin-bottom: 28px;
+        }
+
+        .meta {
+            color: #555;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .forecast-cards {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .card {
+            border: 1px solid #ddd;
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        .label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 6px;
+        }
+
+        .big {
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        .positive {
+            color: #2e7d32;
+        }
+
+        .negative {
+            color: #c62828;
+        }
+
+        .warning {
+            color: #b26a00;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 8px;
+            border: 1px solid #ddd;
+            font-size: 13px;
+        }
+
+        th {
+            background: #f5f5f5;
+        }
+
+        ul {
+            padding-left: 20px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .actions {
+            margin-bottom: 24px;
+        }
+
+        @media print {
+            .actions {
+                display: none;
+            }
+
+            body {
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="actions">
+        <button onclick="window.print()">Print / Save as PDF</button>
+        <a href="/dashboard">Back to Dashboard</a>
+    </div>
+
+    <div class="section">
+        <h1>Financial Report</h1>
+        <div class="meta">
+            <div><strong>Generated at:</strong> {{ generated_at }}</div>
+            <div><strong>Type:</strong> {{ filters.type or "All" }}</div>
+            <div><strong>Category:</strong> {{ filters.category or "All" }}</div>
+            <div><strong>Payment Method:</strong> {{ filters.payment_method or "All" }}</div>
+            <div><strong>Start Date:</strong> {{ filters.start_date or "None" }}</div>
+            <div><strong>End Date:</strong> {{ filters.end_date or "None" }}</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Summary</h2>
+        <div class="cards">
+            <div class="card">
+                <div class="label">Income</div>
+                <div class="big positive">{{ summary.total_income }}</div>
+            </div>
+            <div class="card">
+                <div class="label">Expense</div>
+                <div class="big negative">{{ summary.total_expense }}</div>
+            </div>
+            <div class="card">
+                <div class="label">Refund</div>
+                <div class="big negative">{{ summary.total_refund }}</div>
+            </div>
+            <div class="card">
+                <div class="label">Net</div>
+                <div class="big {% if summary.net_profit >= 0 %}positive{% else %}negative{% endif %}">
+                    {{ summary.net_profit }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>KPI Layer</h2>
+        <div class="cards">
+            <div class="card">
+                <div class="label">Transaction Count</div>
+                <div class="big">{{ kpi_summary.transaction_count }}</div>
+            </div>
+            <div class="card">
+                <div class="label">Net Margin</div>
+                <div class="big {% if kpi_summary.net_margin >= 0 %}positive{% else %}negative{% endif %}">
+                    {{ (kpi_summary.net_margin * 100) | round(2) }}%
+                </div>
+            </div>
+            <div class="card">
+                <div class="label">Expense Ratio</div>
+                <div class="big negative">{{ (kpi_summary.expense_ratio * 100) | round(2) }}%</div>
+            </div>
+            <div class="card">
+                <div class="label">Refund Rate</div>
+                <div class="big negative">{{ (kpi_summary.refund_rate * 100) | round(2) }}%</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Forecast</h2>
+        <div class="forecast-cards">
+            <div class="card">
+                <div class="label">Projected Next Week Net</div>
+                <div class="big {% if forecast_summary.projected_next_week_net >= 0 %}positive{% else %}negative{% endif %}">
+                    {{ forecast_summary.projected_next_week_net | round(2) }}
+                </div>
+            </div>
+            <div class="card">
+                <div class="label">Projected Next Month Income</div>
+                <div class="big positive">{{ forecast_summary.projected_next_month_income | round(2) }}</div>
+            </div>
+            <div class="card">
+                <div class="label">Projected Next Month Expense</div>
+                <div class="big negative">{{ forecast_summary.projected_next_month_expense | round(2) }}</div>
+            </div>
+            <div class="card">
+                <div class="label">Projected Next Month Refund</div>
+                <div class="big negative">{{ forecast_summary.projected_next_month_refund | round(2) }}</div>
+            </div>
+            <div class="card">
+                <div class="label">Projected Next Month Net</div>
+                <div class="big {% if forecast_summary.projected_next_month_net >= 0 %}positive{% else %}negative{% endif %}">
+                    {{ forecast_summary.projected_next_month_net | round(2) }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Auto Insights</h2>
+        <ul>
+            {% for insight in auto_insights %}
+            <li>{{ insight.message }}</li>
+            {% endfor %}
+            {% if not auto_insights %}
+            <li>No insights available.</li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>Detected Anomalies</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Amount</th>
+                    <th>Category</th>
+                    <th>Counterparty</th>
+                    <th>Reason</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in anomalies %}
+                <tr>
+                    <td>{{ row.date }}</td>
+                    <td>{{ row.description }}</td>
+                    <td class="{% if row.amount >= 0 %}positive{% else %}negative{% endif %}">{{ row.amount }}</td>
+                    <td>{{ row.category }}</td>
+                    <td>{{ row.counterparty }}</td>
+                    <td class="warning">{{ row.reason }}</td>
+                </tr>
+                {% endfor %}
+                {% if not anomalies %}
+                <tr>
+                    <td colspan="6">No anomalies detected.</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Weekly Summary</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Week</th>
+                    <th>Income</th>
+                    <th>Expense</th>
+                    <th>Refund</th>
+                    <th>Net</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in weekly_summary %}
+                <tr>
+                    <td>{{ row.week }}</td>
+                    <td class="positive">{{ row.total_income }}</td>
+                    <td class="negative">{{ row.total_expense }}</td>
+                    <td class="negative">{{ row.total_refund }}</td>
+                    <td class="{% if row.net_profit >= 0 %}positive{% else %}negative{% endif %}">{{ row.net_profit }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Monthly Summary</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Month</th>
+                    <th>Income</th>
+                    <th>Expense</th>
+                    <th>Refund</th>
+                    <th>Net</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in monthly_summary %}
+                <tr>
+                    <td>{{ row.month }}</td>
+                    <td class="positive">{{ row.total_income }}</td>
+                    <td class="negative">{{ row.total_expense }}</td>
+                    <td class="negative">{{ row.total_refund }}</td>
+                    <td class="{% if row.net_profit >= 0 %}positive{% else %}negative{% endif %}">{{ row.net_profit }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Top Counterparties</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Counterparty</th>
+                    <th>Total Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in top_counterparties %}
+                <tr>
+                    <td>{{ row.counterparty }}</td>
+                    <td class="{% if row.total_amount >= 0 %}positive{% else %}negative{% endif %}">{{ row.total_amount }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>By Payment Method</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Payment Method</th>
+                    <th>Total Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in payment_method_summary %}
+                <tr>
+                    <td>{{ row.payment_method }}</td>
+                    <td class="{% if row.total_amount >= 0 %}positive{% else %}negative{% endif %}">{{ row.total_amount }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>By Category</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Total Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in category_summary %}
+                <tr>
+                    <td>{{ row.category }}</td>
+                    <td class="{% if row.total_amount >= 0 %}positive{% else %}negative{% endif %}">{{ row.total_amount }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

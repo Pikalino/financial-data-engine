@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.env
+
+# OS
+.DS_Store
+
+# DB (DO NOT COMMIT LOCAL DB)
+*.db
+
+# uploads / temp
+/tmp/
+uploads/
+*.csv
+
+# docker
+*.log

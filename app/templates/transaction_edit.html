@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Edit Transaction</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 24px;
+            background: #f7f7f7;
+            color: #222;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .section {
+            background: white;
+            padding: 24px;
+            border-radius: 10px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 180px 1fr;
+            gap: 14px 18px;
+            align-items: center;
+        }
+
+        label {
+            font-weight: bold;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px 12px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }
+
+        button, a {
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+        }
+
+        button {
+            background: #1976d2;
+            color: white;
+        }
+
+        a {
+            background: #e0e0e0;
+            color: #222;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .meta {
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 18px;
+            line-height: 1.7;
+        }
+
+        .small-form {
+            margin-top: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .actions {
+                flex-direction: column;
+            }
+
+            button, a {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="section">
+            <h1>Edit Transaction</h1>
+
+            <div class="meta">
+                <div><strong>Transaction ID:</strong> {{ transaction.id }}</div>
+                <div><strong>Import batch:</strong> {{ transaction.import_batch.batch_id if transaction.import_batch else "N/A" }}</div>
+                <div><strong>Reviewed:</strong> {{ transaction.is_reviewed }}</div>
+                <div><strong>Ignored:</strong> {{ transaction.is_ignored }}</div>
+            </div>
+
+            <form method="post" action="/transactions/{{ transaction.id }}/edit">
+                <div class="grid">
+                    <label>Date</label>
+                    <input type="text" value="{{ transaction.date }}" disabled>
+
+                    <label for="description">Description</label>
+                    <input type="text" id="description" name="description" value="{{ transaction.description }}" required>
+
+                    <label for="amount">Amount</label>
+                    <input type="number" step="0.01" id="amount" name="amount" value="{{ transaction.amount }}" required>
+
+                    <label for="currency">Currency</label>
+                    <input type="text" id="currency" name="currency" value="{{ transaction.currency }}" required>
+
+                    <label for="payment_method">Payment Method</label>
+                    <input type="text" id="payment_method" name="payment_method" value="{{ transaction.payment_method or '' }}" required>
+
+                    <label for="counterparty">Counterparty</label>
+                    <input type="text" id="counterparty" name="counterparty" value="{{ transaction.counterparty or '' }}" required>
+
+                    <label for="type">Type</label>
+                    <select id="type" name="type" required>
+                        <option value="income" {% if transaction.type == "income" %}selected{% endif %}>Income</option>
+                        <option value="expense" {% if transaction.type == "expense" %}selected{% endif %}>Expense</option>
+                        <option value="refund" {% if transaction.type == "refund" %}selected{% endif %}>Refund</option>
+                        <option value="unknown" {% if transaction.type == "unknown" %}selected{% endif %}>Unknown</option>
+                    </select>
+
+                    <label for="category">Category</label>
+                    <input type="text" id="category" name="category" value="{{ transaction.category }}" required>
+                </div>
+
+                <div class="actions">
+                    <button type="submit">Save Changes</button>
+                    {% if transaction.import_batch %}
+                    <a href="/import-batches/{{ transaction.import_batch.batch_id }}">Cancel</a>
+                    {% else %}
+                    <a href="/dashboard">Cancel</a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+
+        <div class="section">
+            <h2>Review Note</h2>
+            <form method="post" action="/transactions/{{ transaction.id }}/note" class="small-form">
+                <textarea name="note" placeholder="Add review note...">{{ transaction.review_note or '' }}</textarea>
+                <div class="actions">
+                    <button type="submit">Save Note</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="section">
+            <h2>Review Actions</h2>
+            <div class="actions">
+                <form method="post" action="/transactions/{{ transaction.id }}/review">
+                    <button type="submit">Mark Reviewed</button>
+                </form>
+
+                <form method="post" action="/transactions/{{ transaction.id }}/ignore">
+                    <button type="submit">Mark Ignored</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

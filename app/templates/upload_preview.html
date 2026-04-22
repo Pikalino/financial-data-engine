@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Upload Preview</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 24px;
+            background: #f7f7f7;
+            color: #222;
+        }
+
+        .section {
+            background: white;
+            padding: 16px;
+            border-radius: 10px;
+            margin-bottom: 24px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            font-size: 14px;
+        }
+
+        th {
+            background: #f0f0f0;
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        button, a {
+            padding: 10px 14px;
+            border-radius: 8px;
+            text-decoration: none;
+            border: none;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        button {
+            background: #1976d2;
+            color: white;
+        }
+
+        a {
+            background: #e0e0e0;
+            color: #222;
+        }
+    </style>
+</head>
+<body>
+    <h1>Upload Preview</h1>
+
+    <div class="section">
+        <p><strong>Total valid rows:</strong> {{ total_rows }}</p>
+        <p><strong>Invalid rows dropped:</strong> {{ invalid_count }}</p>
+        <p>Showing first 10 rows before import.</p>
+    </div>
+
+    <div class="section">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Amount</th>
+                    <th>Currency</th>
+                    <th>Payment Method</th>
+                    <th>Counterparty</th>
+                    <th>Type</th>
+                    <th>Category</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in preview_rows %}
+                <tr>
+                    <td>{{ row.date }}</td>
+                    <td>{{ row.description }}</td>
+                    <td>{{ row.amount }}</td>
+                    <td>{{ row.currency }}</td>
+                    <td>{{ row.payment_method }}</td>
+                    <td>{{ row.counterparty }}</td>
+                    <td>{{ row.type }}</td>
+                    <td>{{ row.category }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="actions">
+            <form action="/confirm-upload" method="post" style="display:inline;">
+                <input type="hidden" name="preview_id" value="{{ preview_id }}">
+                <button type="submit">Confirm Import</button>
+            </form>
+
+            <a href="/dashboard">Cancel</a>
+        </div>
+    </div>
+</body>
+</html>

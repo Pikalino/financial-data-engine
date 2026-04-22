@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Import Batch Detail</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 24px;
+            background: #f7f7f7;
+            color: #222;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+        }
+
+        h1, h2 {
+            margin-bottom: 12px;
+        }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: 220px 1fr;
+            gap: 10px 16px;
+        }
+
+        .meta-label {
+            font-weight: bold;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .toolbar input[type="text"] {
+            padding: 10px 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            min-width: 260px;
+        }
+
+        .toolbar button {
+            padding: 10px 14px;
+            border: none;
+            border-radius: 8px;
+            background: #1976d2;
+            color: white;
+            cursor: pointer;
+        }
+
+        .toolbar button:hover {
+            background: #125ea7;
+        }
+
+        .muted {
+            color: #666;
+            font-size: 13px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            font-size: 14px;
+        }
+
+        th {
+            background: #f0f0f0;
+        }
+
+        .positive {
+            color: #2e7d32;
+        }
+
+        .negative {
+            color: #d32f2f;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 16px;
+            text-decoration: none;
+            color: #1976d2;
+        }
+
+        .edit-link {
+            color: #1976d2;
+            text-decoration: none;
+        }
+
+        .edit-link:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .meta-grid {
+                grid-template-columns: 1fr;
+            }
+
+            table {
+                display: block;
+                overflow-x: auto;
+            }
+
+            .toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .toolbar input[type="text"],
+            .toolbar button {
+                width: 100%;
+                box-sizing: border-box;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a class="back-link" href="/dashboard">← Back to Dashboard</a>
+
+        <div class="section">
+            <h1>Import Batch Detail</h1>
+
+            <div class="meta-grid">
+                <div class="meta-label">Batch ID</div>
+                <div>{{ batch.batch_id }}</div>
+
+                <div class="meta-label">File Name</div>
+                <div>{{ batch.file_name }}</div>
+
+                <div class="meta-label">Uploaded At</div>
+                <div>{{ batch.uploaded_at }}</div>
+
+                <div class="meta-label">Inserted Count</div>
+                <div>{{ batch.inserted_count }}</div>
+
+                <div class="meta-label">Skipped Count</div>
+                <div>{{ batch.skipped_count }}</div>
+
+                <div class="meta-label">Invalid Count</div>
+                <div>{{ batch.invalid_count }}</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Transactions in This Batch</h2>
+            <div class="muted">
+                Total transactions shown: {{ transactions|length }}
+            </div>
+
+            <form method="post" action="/import-batches/{{ batch.batch_id }}/bulk-update-category">
+                <div class="toolbar">
+                    <input
+                        type="text"
+                        name="category"
+                        placeholder="New category (e.g. marketing)"
+                        required
+                    >
+                    <button type="submit">Bulk Update Category</button>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>
+                                <input type="checkbox" id="select-all">
+                            </th>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Amount</th>
+                            <th>Currency</th>
+                            <th>Type</th>
+                            <th>Category</th>
+                            <th>Payment Method</th>
+                            <th>Counterparty</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tx in transactions %}
+                        <tr>
+                            <td>
+                                <input type="checkbox" name="transaction_ids" value="{{ tx.id }}">
+                            </td>
+                            <td>{{ tx.date }}</td>
+                            <td>{{ tx.description }}</td>
+                            <td class="{% if tx.amount >= 0 %}positive{% else %}negative{% endif %}">
+                                {{ tx.amount }}
+                            </td>
+                            <td>{{ tx.currency }}</td>
+                            <td>{{ tx.type }}</td>
+                            <td>{{ tx.category }}</td>
+                            <td>{{ tx.payment_method }}</td>
+                            <td>{{ tx.counterparty }}</td>
+                            <td>
+                                <a class="edit-link" href="/transactions/{{ tx.id }}/edit">Edit</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% if not transactions %}
+                        <tr>
+                            <td colspan="10">No transactions found for this batch.</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const selectAll = document.getElementById("select-all");
+            if (!selectAll) return;
+
+            selectAll.addEventListener("change", function () {
+                const checkboxes = document.querySelectorAll('input[name="transaction_ids"]');
+                checkboxes.forEach(cb => {
+                    cb.checked = selectAll.checked;
+                });
+            });
+        });
+    </script>
+</body>
+</html>

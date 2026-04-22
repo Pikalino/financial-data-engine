@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Financial Data Engine Dashboard</title>
+
+    <link rel="stylesheet" href="/static/styles.css" />
+    <script src="/static/theme.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div class="page">
+        <h1 class="page-title">Financial Data Engine</h1>
+        <p class="page-subtitle">Track financial activity, imports, trends, anomalies, and forecasts in one place.</p>
+
+        <div class="toolbar">
+            <span class="toolbar-pill">Logged in as <strong>{{ current_user.username }}</strong></span>
+            <span class="toolbar-spacer"></span>
+
+            <a class="toolbar-link" href="/category-rules">Manage Category Rules</a>
+
+            <a class="toolbar-link"
+               href="/report?type={{ filters.type or '' }}&category={{ filters.category or '' }}&payment_method={{ filters.payment_method or '' }}{% if filters.start_date %}&start_date={{ filters.start_date.isoformat() }}{% endif %}{% if filters.end_date %}&end_date={{ filters.end_date.isoformat() }}{% endif %}">
+                Open Printable Report
+            </a>
+
+            <a class="toolbar-link"
+               href="/export/transactions?type={{ filters.type or '' }}&category={{ filters.category or '' }}&payment_method={{ filters.payment_method or '' }}{% if filters.start_date %}&start_date={{ filters.start_date.isoformat() }}{% endif %}{% if filters.end_date %}&end_date={{ filters.end_date.isoformat() }}{% endif %}">
+                Export Transactions CSV
+            </a>
+
+            <a class="toolbar-link"
+               href="/export/summary?type={{ filters.type or '' }}&category={{ filters.category or '' }}&payment_method={{ filters.payment_method or '' }}{% if filters.start_date %}&start_date={{ filters.start_date.isoformat() }}{% endif %}{% if filters.end_date %}&end_date={{ filters.end_date.isoformat() }}{% endif %}">
+                Export Summary CSV
+            </a>
+
+            <a class="toolbar-link" href="/logout">Logout</a>
+            <button type="button" class="secondary theme-toggle" onclick="toggleTheme()">Toggle Theme</button>
+        </div>
+
+        <div class="section">
+            <div class="section-title-row">
+                <h2>Upload CSV</h2>
+                <span class="badge">CSV Import</span>
+            </div>
+
+            <form action="/upload" method="post" enctype="multipart/form-data" class="file-upload-row">
+                <input type="file" name="file" accept=".csv" required>
+                <button type="submit">Upload</button>
+                <a class="inline-link" href="/download-template">Download Sample Template</a>
+            </form>
+
+            <p class="small-note">
+                Required columns: <strong>date</strong>, <strong>description</strong>, <strong>amount</strong><br>
+                Optional columns: currency, payment_method, counterparty
+            </p>
+        </div>
+
+        {% if upload_error %}
+        <div class="section alert alert-error">
+            <div class="section-title-row">
+                <h2>Upload Error</h2>
+            </div>
+            <p>{{ upload_error }}</p>
+        </div>
+        {% endif %}
+
+        {% if upload_inserted is not none or upload_skipped is not none or upload_invalid is not none %}
+        <div class="section alert alert-success">
+            <div class="section-title-row">
+                <h2>Upload Result</h2>
+            </div>
+            <p>
+                Inserted: <strong>{{ upload_inserted or 0 }}</strong>
+                &nbsp;|&nbsp;
+                Skipped duplicates: <strong>{{ upload_skipped or 0 }}</strong>
+                &nbsp;|&nbsp;
+                Invalid rows dropped: <strong>{{ upload_invalid or 0 }}</strong>
+            </p>
+        </div>
+        {% endif %}
+
+        <div class="section">
+            <div class="section-title-row">
+                <h2>Saved Views</h2>
+                <span class="badge">Reusable Filters</span>
+            </div>
+
+            <div class="saved-views-grid">
+                <div>
+                    <div class="saved-view-list">
+                        {% for view in saved_views %}
+                        <div class="saved-view-item">
+                            <div>
+                                <strong>{{ view.name }}</strong><br>
+                                <small class="muted">
+                                    Type: {{ view.filter_type or "All" }},
+                                    Category: {{ view.category or "All" }},
+                                    Payment: {{ view.payment_method or "All" }}
+                                </small>
+                            </div>
+                            <div class="saved-view-actions">
+                                <a class="inline-link" href="/dashboard?type={{ view.filter_type or '' }}&category={{ view.category or '' }}&payment_method={{ view.payment_method or '' }}{% if view.start_date %}&start_date={{ view.start_date.isoformat() }}{% endif %}{% if view.end_date %}&end_date={{ view.end_date.isoformat() }}{% endif %}">
+                                    Open
+                                </a>
+                                <form method="post" action="/saved-views/{{ view.id }}/delete">
+                                    <button type="submit" class="secondary">Delete</button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% if not saved_views %}
+                        <div class="saved-view-item">
+                            <div>No saved views yet.</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="section" style="margin: 0; box-shadow: none;">
+                    <div class="section-title-row">
+                        <h3>Save Current Filters</h3>
+                    </div>
+
+                    <form method="post" action="/saved-views" class="form-stack">
+                        <input type="text" name="name" placeholder="View name" required>
+
+                        <input type="hidden" name="type" value="{{ filters.type or '' }}">
+                        <input type="hidden" name="category" value="{{ filters.category or '' }}">
+                        <input type="hidden" name="payment_method" value="{{ filters.payment_method or '' }}">
+                        <input type="hidden" name="start_date" value="{% if filters.start_date %}{{ filters.start_date.isoformat() }}{% endif %}">
+                        <input type="hidden" name="end_date" value="{% if filters.end_date %}{{ filters.end_date.isoformat() }}{% endif %}">
+
+                        <button type="submit">Save View</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title-row">
+                <h2>Auto Insights</h2>
+                <span class="badge">AI-like Summary</span>
+            </div>
+            <ul class="insight-list">
+                {% for insight in auto_insights %}
+                <li>{{ insight.message }}</li>
+                {% endfor %}
+                {% if not auto_insights %}
+                <li>No insights available.</li>
+                {% endif %}
+            </ul>
+        </div>
+
+        <div class="cards">
+            <div class="card">
+                <div class="label">Income</div>
+                <div class="big positive">{{ summary.total_income }}</div>
+            </div>
+            <div class="card">
+                <div class="label">Expense</div>
+                <div class="big negative">{{ summary.total_expense }}</div>
+            </div>
+            <div class="card">
+                <div class="label">Refund</div>
+                <div class="big negative">{{ summary.total_refund }}</div>
+            </div>
+            <div class="card">
+                <div class="label">Net</div>
+                <div class="big {% if summary.net_profit >= 0 %}positive{% else %}negative{% endif %}">
+                    {{ summary.net_profit }}
+                </div>
+            </div>
+        </div>
+
+        <div class="forecast-cards">
+            <div class="card">
+                <div class="label">Projected Next Week Net</div>
+                <div class="big {% if forecast_summary.projected_next_week_net >= 0 %}positive{% else %}negative{% endif %}">
+                    {{ forecast_summary.projected_next_week_net | round(2) }}
+                </div>
+            </div>
+            <div class="card">
+                <div class="label">Projected Next Month Income</div>
+                <div class="big positive">{{ forecast_summary.projected_next_month_income | round(2) }}</div>
+            </div>
+            <div class="card">
+                <div class="label">Projected Next Month Expense</div>
+                <div class="big negative">{{ forecast_summary.projected_next_month_expense | round(2) }}</div>
+            </div>
+            <div class="card">
+                <div class="label">Projected Next Month Refund</div>
+                <div class="big negative">{{ forecast_summary.projected_next_month_refund | round(2) }}</div>
+            </div>
+            <div class="card">
+                <div class="label">Projected Next Month Net</div>
+                <div class="big {% if forecast_summary.projected_next_month_net >= 0 %}positive{% else %}negative{% endif %}">
+                    {{ forecast_summary.projected_next_month_net | round(2) }}
+                </div>
+            </div>
+        </div>
+
+        <div class="kpi-cards">
+            <div class="card">
+                <div class="label">Transaction Count</div>
+                <div class="big">{{ kpi_summary.transaction_count }}</div>
+            </div>
+            <div class="card">
+                <div class="label">Avg Transaction Amount</div>
+                <div class="big {% if kpi_summary.average_transaction_amount >= 0 %}positive{% else %}negative{% endif %}">
+                    {{ kpi_summary.average_transaction_amount }}
+                </div>
+            </div>
+            <div class="card">
+                <div class="label">Net Margin</div>
+                <div class="big {% if kpi_summary.net_margin >= 0 %}positive{% else %}negative{% endif %}">
+                    {{ (kpi_summary.net_margin * 100) | round(2) }}%
+                </div>
+            </div>
+            <div class="card">
+                <div class="label">Expense Ratio</div>
+                <div class="big negative">
+                    {{ (kpi_summary.expense_ratio * 100) | round(2) }}%
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="label">Refund Rate</div>
+                <div class="big negative">
+                    {{ (kpi_summary.refund_rate * 100) | round(2) }}%
+                </div>
+            </div>
+            <div class="card">
+                <div class="label">Income Transactions</div>
+                <div class="big positive">{{ kpi_summary.income_transaction_count }}</div>
+            </div>
+            <div class="card">
+                <div class="label">Expense Transactions</div>
+                <div class="big negative">{{ kpi_summary.expense_transaction_count }}</div>
+            </div>
+            <div class="card">
+                <div class="label">Refund Transactions</div>
+                <div class="big negative">{{ kpi_summary.refund_transaction_count }}</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title-row">
+                <h2>Detected Anomalies</h2>
+                <span class="badge">Review Queue</span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Amount</th>
+                            <th>Category</th>
+                            <th>Counterparty</th>
+                            <th>Reason</th>
+                            <th>Reviewed</th>
+                            <th>Ignored</th>
+                            <th>Note</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in anomalies %}
+                        <tr>
+                            <td>{{ row.date }}</td>
+                            <td>{{ row.description }}</td>
+                            <td class="{% if row.amount >= 0 %}positive{% else %}negative{% endif %}">
+                                {{ row.amount }}
+                            </td>
+                            <td>{{ row.category }}</td>
+                            <td>{{ row.counterparty }}</td>
+                            <td class="warning">{{ row.reason }}</td>
+                            <td>{{ row.is_reviewed }}</td>
+                            <td>{{ row.is_ignored }}</td>
+                            <td class="muted">{{ row.review_note or "" }}</td>
+                            <td><a href="/transactions/{{ row.transaction_id }}/edit">Review</a></td>
+                        </tr>
+                        {% endfor %}
+                        {% if not anomalies %}
+                        <tr>
+                            <td colspan="10">No anomalies detected.</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title-row">
+                <h2>Recent Import Batches</h2>
+                <span class="badge">History</span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Uploaded At</th>
+                            <th>Batch ID</th>
+                            <th>File Name</th>
+                            <th>Inserted</th>
+                            <th>Skipped</th>
+                            <th>Invalid</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for batch in import_batches %}
+                        <tr>
+                            <td>{{ batch.uploaded_at }}</td>
+                            <td><a href="/import-batches/{{ batch.batch_id }}">{{ batch.batch_id }}</a></td>
+                            <td>{{ batch.file_name }}</td>
+                            <td>{{ batch.inserted_count }}</td>
+                            <td>{{ batch.skipped_count }}</td>
+                            <td>{{ batch.invalid_count }}</td>
+                        </tr>
+                        {% endfor %}
+                        {% if not import_batches %}
+                        <tr>
+                            <td colspan="6">No import history yet.</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section filters">
+            <div class="section-title-row">
+                <h2>Filters</h2>
+                <span class="badge">Dashboard Scope</span>
+            </div>
+            <form method="get" action="/dashboard">
+                <input name="category" placeholder="Category" value="{{ filters.category or '' }}">
+                <input name="payment_method" placeholder="Payment" value="{{ filters.payment_method or '' }}">
+                <select name="type">
+                    <option value="">All</option>
+                    <option value="income" {% if filters.type == "income" %}selected{% endif %}>Income</option>
+                    <option value="expense" {% if filters.type == "expense" %}selected{% endif %}>Expense</option>
+                    <option value="refund" {% if filters.type == "refund" %}selected{% endif %}>Refund</option>
+                </select>
+                <input
+                    type="datetime-local"
+                    name="start_date"
+                    value="{% if filters.start_date %}{{ filters.start_date.strftime('%Y-%m-%dT%H:%M') }}{% endif %}"
+                >
+                <input
+                    type="datetime-local"
+                    name="end_date"
+                    value="{% if filters.end_date %}{{ filters.end_date.strftime('%Y-%m-%dT%H:%M') }}{% endif %}"
+                >
+                <button type="submit">Apply</button>
+            </form>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="section chart-card">
+                <div class="section-title-row">
+                    <h2>Payment Method Breakdown</h2>
+                </div>
+                <canvas id="paymentMethodChart"></canvas>
+            </div>
+
+            <div class="section chart-card">
+                <div class="section-title-row">
+                    <h2>Weekly Net Trend</h2>
+                </div>
+                <canvas id="weeklyChart"></canvas>
+            </div>
+
+            <div class="section chart-card">
+                <div class="section-title-row">
+                    <h2>Monthly Net Trend</h2>
+                </div>
+                <canvas id="monthlyChart"></canvas>
+            </div>
+
+            <div class="section chart-card">
+                <div class="section-title-row">
+                    <h2>Category Breakdown</h2>
+                </div>
+                <canvas id="categoryChart"></canvas>
+            </div>
+
+            <div class="section chart-card">
+                <div class="section-title-row">
+                    <h2>Daily Cash Flow</h2>
+                </div>
+                <canvas id="dailyChart"></canvas>
+            </div>
+
+            <div class="section chart-card">
+                <div class="section-title-row">
+                    <h2>Top Counterparties</h2>
+                </div>
+                <canvas id="counterpartyChart"></canvas>
+            </div>
+
+            <div class="section chart-card">
+                <div class="section-title-row">
+                    <h2>Category Trend Over Time</h2>
+                </div>
+                <canvas id="categoryTrendChart"></canvas>
+            </div>
+
+            <div class="section full-width">
+                <div class="section-title-row">
+                    <h2>By Payment Method</h2>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Payment Method</th>
+                                <th>Total Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in payment_method_summary %}
+                            <tr>
+                                <td><a href="/transactions/view?payment_method={{ row.payment_method }}">{{ row.payment_method }}</a></td>
+                                <td class="{% if row.total_amount >= 0 %}positive{% else %}negative{% endif %}">
+                                    {{ row.total_amount }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% if not payment_method_summary %}
+                            <tr>
+                                <td colspan="2">No payment method data found.</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="section full-width">
+                <div class="section-title-row">
+                    <h2>Top Counterparties</h2>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Counterparty</th>
+                                <th>Total Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in top_counterparties %}
+                            <tr>
+                                <td><a href="/transactions/view?counterparty={{ row.counterparty }}">{{ row.counterparty }}</a></td>
+                                <td class="{% if row.total_amount >= 0 %}positive{% else %}negative{% endif %}">
+                                    {{ row.total_amount }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% if not top_counterparties %}
+                            <tr>
+                                <td colspan="2">No counterparty data found.</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="section full-width">
+                <div class="section-title-row">
+                    <h2>Weekly Summary</h2>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Week</th>
+                                <th>Income</th>
+                                <th>Expense</th>
+                                <th>Refund</th>
+                                <th>Net</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in weekly_summary %}
+                            <tr>
+                                <td>{{ row.week }}</td>
+                                <td class="positive">{{ row.total_income }}</td>
+                                <td class="negative">{{ row.total_expense }}</td>
+                                <td class="negative">{{ row.total_refund }}</td>
+                                <td class="{% if row.net_profit >= 0 %}positive{% else %}negative{% endif %}">
+                                    {{ row.net_profit }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% if not weekly_summary %}
+                            <tr>
+                                <td colspan="5">No weekly data found.</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="section full-width">
+                <div class="section-title-row">
+                    <h2>Monthly Summary</h2>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Month</th>
+                                <th>Income</th>
+                                <th>Expense</th>
+                                <th>Refund</th>
+                                <th>Net</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in monthly_summary %}
+                            <tr>
+                                <td>{{ row.month }}</td>
+                                <td class="positive">{{ row.total_income }}</td>
+                                <td class="negative">{{ row.total_expense }}</td>
+                                <td class="negative">{{ row.total_refund }}</td>
+                                <td class="{% if row.net_profit >= 0 %}positive{% else %}negative{% endif %}">
+                                    {{ row.net_profit }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% if not monthly_summary %}
+                            <tr>
+                                <td colspan="5">No monthly data found.</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="section full-width">
+                <div class="section-title-row">
+                    <h2>Category Trend by Month</h2>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Month</th>
+                                <th>Category</th>
+                                <th>Total Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in category_monthly_trend %}
+                            <tr>
+                                <td>{{ row.month }}</td>
+                                <td>{{ row.category }}</td>
+                                <td class="{% if row.total_amount >= 0 %}positive{% else %}negative{% endif %}">
+                                    {{ row.total_amount }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% if not category_monthly_trend %}
+                            <tr>
+                                <td colspan="3">No category trend data found.</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="section full-width">
+                <div class="section-title-row">
+                    <h2>By Category</h2>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th>Total Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in category_summary %}
+                            <tr>
+                                <td><a href="/transactions/view?category={{ row.category }}">{{ row.category }}</a></td>
+                                <td class="{% if row.total_amount >= 0 %}positive{% else %}negative{% endif %}">
+                                    {{ row.total_amount }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% if not category_summary %}
+                            <tr>
+                                <td colspan="2">No category data found.</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="section full-width">
+                <div class="section-title-row">
+                    <h2>By Day</h2>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Total Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in daily_summary %}
+                            <tr>
+                                <td>{{ row.date }}</td>
+                                <td class="{% if row.total_amount >= 0 %}positive{% else %}negative{% endif %}">
+                                    {{ row.total_amount }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% if not daily_summary %}
+                            <tr>
+                                <td colspan="2">No daily data found.</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const categoryData = JSON.parse('{{ category_summary | tojson | safe }}');
+    const dailyData = JSON.parse('{{ daily_summary | tojson | safe }}');
+    const weeklyData = JSON.parse('{{ weekly_summary | tojson | safe }}');
+    const monthlyData = JSON.parse('{{ monthly_summary | tojson | safe }}');
+    const paymentMethodData = JSON.parse('{{ payment_method_summary | tojson | safe }}');
+    const counterpartyData = JSON.parse('{{ top_counterparties | tojson | safe }}');
+    const categoryTrendData = JSON.parse('{{ category_monthly_trend | tojson | safe }}');
+
+    const css = getComputedStyle(document.documentElement);
+    const COLOR_SUCCESS = css.getPropertyValue('--success').trim();
+    const COLOR_DANGER = css.getPropertyValue('--danger').trim();
+    const COLOR_PRIMARY = css.getPropertyValue('--primary').trim();
+    const COLOR_PRIMARY_SOFT = css.getPropertyValue('--primary-soft').trim();
+    const COLOR_BORDER = css.getPropertyValue('--border').trim();
+    const COLOR_TEXT = css.getPropertyValue('--text').trim();
+    const COLOR_MUTED = css.getPropertyValue('--muted').trim();
+
+    const PALETTE = [
+        "#60a5fa",
+        "#34d399",
+        "#f59e0b",
+        "#f87171",
+        "#a78bfa",
+        "#22c55e",
+        "#fb7185",
+        "#38bdf8",
+        "#facc15",
+        "#c084fc"
+    ];
+
+    Chart.defaults.color = COLOR_TEXT;
+    Chart.defaults.borderColor = COLOR_BORDER;
+    Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+
+    const income = categoryData.map(x => x.total_amount > 0 ? x.total_amount : 0);
+    const expense = categoryData.map(x => x.total_amount < 0 ? Math.abs(x.total_amount) : 0);
+
+    new Chart(document.getElementById("categoryChart"), {
+        type: "bar",
+        data: {
+            labels: categoryData.map(x => x.category),
+            datasets: [
+                {
+                    label: "Income",
+                    data: income,
+                    backgroundColor: COLOR_SUCCESS,
+                    borderRadius: 8
+                },
+                {
+                    label: "Expense",
+                    data: expense,
+                    backgroundColor: COLOR_DANGER,
+                    borderRadius: 8
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: "top" }
+            }
+        }
+    });
+
+    new Chart(document.getElementById("dailyChart"), {
+        type: "line",
+        data: {
+            labels: dailyData.map(x => x.date),
+            datasets: [{
+                label: "Daily Cash Flow",
+                data: dailyData.map(x => x.total_amount),
+                borderColor: COLOR_PRIMARY,
+                backgroundColor: COLOR_PRIMARY,
+                pointBackgroundColor: COLOR_PRIMARY,
+                pointBorderColor: COLOR_PRIMARY,
+                fill: false,
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: true }
+            }
+        }
+    });
+
+    new Chart(document.getElementById("weeklyChart"), {
+        type: "bar",
+        data: {
+            labels: weeklyData.map(x => x.week),
+            datasets: [{
+                label: "Weekly Net Profit",
+                data: weeklyData.map(x => x.net_profit),
+                backgroundColor: weeklyData.map(x => x.net_profit >= 0 ? COLOR_SUCCESS : COLOR_DANGER),
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+
+    new Chart(document.getElementById("monthlyChart"), {
+        type: "bar",
+        data: {
+            labels: monthlyData.map(x => x.month),
+            datasets: [{
+                label: "Monthly Net Profit",
+                data: monthlyData.map(x => x.net_profit),
+                backgroundColor: monthlyData.map(x => x.net_profit >= 0 ? COLOR_SUCCESS : COLOR_DANGER),
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+
+    new Chart(document.getElementById("paymentMethodChart"), {
+        type: "doughnut",
+        data: {
+            labels: paymentMethodData.map(x => x.payment_method),
+            datasets: [{
+                data: paymentMethodData.map(x => Math.abs(x.total_amount)),
+                backgroundColor: paymentMethodData.map((_, i) => PALETTE[i % PALETTE.length]),
+                borderColor: COLOR_BORDER,
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: "top",
+                    labels: {
+                        color: COLOR_TEXT,
+                        boxWidth: 14
+                    }
+                }
+            }
+        }
+    });
+
+    new Chart(document.getElementById("counterpartyChart"), {
+        type: "bar",
+        data: {
+            labels: counterpartyData.map(x => x.counterparty),
+            datasets: [{
+                label: "Total Amount",
+                data: counterpartyData.map(x => x.total_amount),
+                backgroundColor: counterpartyData.map(x => x.total_amount >= 0 ? COLOR_SUCCESS : COLOR_DANGER),
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+
+    const trendMonths = [...new Set(categoryTrendData.map(x => x.month))];
+    const trendCategories = [...new Set(categoryTrendData.map(x => x.category))];
+
+    const trendDatasets = trendCategories.map((category, i) => {
+        const data = trendMonths.map((month) => {
+            const row = categoryTrendData.find(
+                x => x.month === month && x.category === category
+            );
+            return row ? row.total_amount : 0;
+        });
+
+        return {
+            label: category,
+            data: data,
+            tension: 0.3,
+            borderColor: PALETTE[i % PALETTE.length],
+            backgroundColor: PALETTE[i % PALETTE.length],
+            pointBackgroundColor: PALETTE[i % PALETTE.length],
+            pointBorderColor: PALETTE[i % PALETTE.length]
+        };
+    });
+
+    new Chart(document.getElementById("categoryTrendChart"), {
+        type: "line",
+        data: {
+            labels: trendMonths,
+            datasets: trendDatasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: "top" }
+            }
+        }
+    });
+</script>
+</body>
+</html>
