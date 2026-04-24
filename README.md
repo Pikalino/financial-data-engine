@@ -1,36 +1,45 @@
 # Financial Data Engine
 
-A web-based data processing and analytics tool that allows small businesses to upload CSV files and generate insights and dashboards.
+A web-based data pipeline and analytics tool for small businesses to upload CSV files and generate financial insights.
 
-Designed to simplify financial data analysis without requiring technical expertise.
+Live demo: https://financial-data-engine.onrender.com
 
 ## Features
 
-- CSV file upload and processing
+- CSV upload and processing
 - Data cleaning and transformation
 - Automated insight generation
-- Dashboard-style data visualization
-- Simple interface for non-technical users
+- Dashboard-style output
+- Dockerized deployment
 
 ## Tech Stack
 
-- Python (backend processing)
+- Python (data processing)
 - HTML / CSS (frontend)
 - Docker (deployment)
 - REST-based architecture
 
 ## How It Works
 
-1. User uploads a financial CSV file
-2. System processes and cleans the data
-3. Key metrics and insights are generated
-4. Results are displayed via dashboards
+1. Upload a financial CSV file
+2. System processes and structures the data
+3. Key metrics are calculated
+4. Results are displayed as insights
+
+## Example Use Cases
+
+- Revenue trend analysis
+- Expense breakdown
+- Basic financial summaries
 
 ## What I Built
 
-- Data ingestion and processing pipeline
-- Backend logic for transforming financial data
-- Basic dashboard interface for visualization
-- Dockerized setup for deployment
+- Data ingestion and transformation pipeline
+- Backend logic for financial analysis
+- Web interface for file upload and results
+- Containerized deployment (Docker + Render)
 
-https://financial-data-engine.onrender.com
+## Run Locally
+
+```bash
+docker-compose up --build
